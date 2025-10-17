@@ -21,7 +21,7 @@ const CustomTabBar = ({ state, navigation }) => {
     <View
       style={{
         position: "absolute",
-        bottom: -10,
+        bottom: 0,
         left: 7,
         right: 7,
         height: 60,

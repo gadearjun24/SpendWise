@@ -1,4 +1,4 @@
-import React, { useContext, useState, useRef } from "react";
+import React, { useContext, useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { FAB } from "react-native-paper";
 import { ThemeContext } from "../../context/ThemeContext";
 import ScreenLayout from "../../components/layout/ScreenLayout";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import { useTransaction } from "../../context/TransactionsContext";
+import TransactionModal from "../../components/transactions/TransactionModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -26,7 +28,7 @@ const initialNewTransaction = {
   amount: "",
   category: "General",
   type: "Expense",
-  date: new Date().toISOString().slice(0, 10),
+  createdAt: new Date().toISOString().slice(0, 10),
   time: new Date().toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -35,45 +37,56 @@ const initialNewTransaction = {
 
 const Transactions = () => {
   const { theme, isDark } = useContext(ThemeContext);
+  const { transactions, addTransaction, } = useTransaction()
 
-  const [transactions, setTransactions] = useState([
-    {
-      id: 1,
-      name: "Amazon Prime",
-      type: "Expense",
-      amount: "-₹1,200",
-      category: "Shopping",
-      time: "10:30 AM",
-      date: "2025-10-12",
-    },
-    {
-      id: 2,
-      name: "Monthly Salary",
-      type: "Income",
-      amount: "+₹45,300",
-      category: "Income",
-      time: "9:00 AM",
-      date: "2025-10-12",
-    },
-    {
-      id: 3,
-      name: "Zomato Dinner",
-      type: "Expense",
-      amount: "-₹450",
-      category: "Food",
-      time: "8:45 PM",
-      date: "2025-10-11",
-    },
-  ]);
+  // const [transactions, setTransactions] = useState([
+  //   {
+  //     id: 1,
+  //     name: "Amazon Prime",
+  //     type: "Expense",
+  //     amount: "-₹1,200",
+  //     category: "Shopping",
+  //     time: "10:30 AM",
+  //     createdAt: "2025-10-12",
+  //   },
+  //   {
+  //     id: 2,
+  //     name: "Monthly Salary",
+  //     type: "Income",
+  //     amount: "+₹45,300",
+  //     category: "Income",
+  //     time: "9:00 AM",
+  //     createdAt: "2025-10-12",
+  //   },
+  //   {
+  //     id: 3,
+  //     name: "Zomato Dinner",
+  //     type: "Expense",
+  //     amount: "-₹450",
+  //     category: "Food",
+  //     time: "8:45 PM",
+  //     createdAt: "2025-10-11",
+  //   },
+  // ]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeDate, setActiveDate] = useState("All");
+  const [allCategories, setAllCategories] = useState(["All", "Food", "Shopping", "Income"])
 
   const newTransactionRef = useRef(initialNewTransaction);
   const [currentType, setCurrentType] = useState("Expense");
+
+  // --------- GET CATEGORIES -------------
+
+  useEffect(() => {
+    const categories = transactions.map((t) => {
+      return t.category;
+    })
+    setAllCategories(["All", ...new Set(categories)])
+  }, [transactions])
 
   // --------- SUMMARY CALCULATION ----------
   const calculateSummary = () => {
@@ -102,163 +115,174 @@ const Transactions = () => {
       activeDate === "All"
         ? true
         : activeDate === "Today"
-        ? t.date === new Date().toISOString().slice(0, 10)
-        : activeDate === "This Week"
-        ? Date.now() - new Date(t.date).getTime() < 7 * 86400000
-        : true;
+          ? t.createdAt === new Date().toISOString().slice(0, 10)
+          : activeDate === "This Week"
+            ? Date.now() - new Date(t.createdAt).getTime() < 7 * 86400000
+            : true;
     return matchesSearch && matchesCategory && matchesDate;
   });
 
   // --------- ADD TRANSACTION ----------
-  const handleAddTransaction = () => {
-    const newTx = newTransactionRef.current;
+  const handleAddTransaction = (newTx) => {
+    console.log({newTx})
     if (!newTx.name || !newTx.amount) return;
 
     const parsed = parseFloat(newTx.amount);
+
     if (isNaN(parsed)) return;
 
-    const formatted = `${
-      newTx.type === "Income" ? "+" : "-"
-    }₹${parsed.toLocaleString("en-IN")}`;
-    const newItem = {
+    const newTransaction = {
       id: Date.now(),
       ...newTx,
-      amount: formatted,
-    };
+      updatedAt: newTx.createdAt,
+      amount: `₹${parsed}`,
+      isIncome: newTx.type === "Income",
+      isExpense: newTx.type === "Expense",
+    }
 
-    setTransactions((prev) => [newItem, ...prev]);
+    addTransaction(newTransaction)
     setIsModalVisible(false);
     newTransactionRef.current = initialNewTransaction;
+    setCurrentType("Expense")
   };
 
   // --------- MODAL COMPONENT ----------
-  const TransactionModal = () => (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={isModalVisible}
-      onRequestClose={() => setIsModalVisible(false)}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={[
-              styles.modalContainer,
-              { backgroundColor: theme.colors.background },
-            ]}
-          >
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.background,
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                  New Transaction
-                </Text>
-                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                  <MaterialIcons
-                    name="close"
-                    size={22}
-                    color={theme.colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
+  // const TransactionModal = () => (
+  //   <Modal
+  //     animationType="slide"
+  //     transparent
+  //     visible={isModalVisible}
+  //     onRequestClose={() => setIsModalVisible(false)}
+  //   >
+  //     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+  //       <View style={styles.modalOverlay}>
+  //         <KeyboardAvoidingView
+  //           behavior={Platform.OS === "ios" ? "padding" : undefined}
+  //           keyboardVerticalOffset={-height * 0.15}
+  //           style={[
+  //             styles.modalContainer,
+  //             { backgroundColor: theme.colors.background },
+  //           ]}
+  //         >
+  //           <View
+  //             style={[
+  //               styles.modalContent,
+  //               {
+  //                 borderColor: theme.colors.border,
+  //                 backgroundColor: theme.colors.background,
+  //               },
+  //             ]}
+  //           >
+  //             <View style={styles.modalHeader}>
+  //               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+  //                 New Transaction
+  //               </Text>
+  //               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+  //                 <MaterialIcons
+  //                   name="close"
+  //                   size={22}
+  //                   color={theme.colors.textSecondary}
+  //                 />
+  //               </TouchableOpacity>
+  //             </View>
 
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Type toggle */}
-                <View style={styles.typeToggleContainer}>
-                  {["Expense", "Income"].map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.typeToggle,
-                        currentType === type &&
-                          styles.typeToggleActive(theme, type),
-                      ]}
-                      onPress={() => {
-                        setCurrentType(type);
-                        newTransactionRef.current.type = type;
-                      }}
-                    >
-                      <Text style={styles.typeToggleText(currentType === type)}>
-                        {type}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+  //             <ScrollView showsVerticalScrollIndicator={true}
+  //               alwaysBounceVertical={true}
+  //               contentContainerStyle={{
+  //                 flexGrow: 1,       // ✅ makes content scroll even if it's not tall enough
+  //                 paddingBottom: 120
+  //               }}
+  //               keyboardShouldPersistTaps="handled"
+  //               keyboardDismissMode="on-drag"
+  //             >
+  //               {/* Type toggle */}
+  //               <View style={styles.typeToggleContainer}>
+  //                 {["Expense", "Income"].map((type) => (
+  //                   <TouchableOpacity
+  //                     key={type}
+  //                     style={[
+  //                       styles.typeToggle,
+  //                       currentType === type &&
+  //                       styles.typeToggleActive(theme, type),
+  //                     ]}
+  //                     onPress={() => {
+  //                       setCurrentType(type);
+  //                       newTransactionRef.current.type = type;
+  //                     }}
+  //                   >
+  //                     <Text style={styles.typeToggleText(currentType === type)}>
+  //                       {type}
+  //                     </Text>
+  //                   </TouchableOpacity>
+  //                 ))}
+  //               </View>
 
-                {/* Input Fields */}
-                {[
-                  {
-                    label: "Vendor / Name",
-                    key: "name",
-                    icon: "label-outline",
-                  },
-                  { label: "Amount (₹)", key: "amount", icon: "payments" },
-                  { label: "Category", key: "category", icon: "category" },
-                  {
-                    label: "Date (YYYY-MM-DD)",
-                    key: "date",
-                    icon: "calendar-today",
-                  },
-                  { label: "Time (HH:MM)", key: "time", icon: "access-time" },
-                ].map((field) => (
-                  <View key={field.key} style={styles.inputGroup}>
-                    <Text
-                      style={[
-                        styles.inputLabel,
-                        { color: theme.colors.textSecondary },
-                      ]}
-                    >
-                      {field.label}
-                    </Text>
-                    <View style={styles.inputWrapper(theme)}>
-                      <MaterialIcons
-                        name={field.icon}
-                        size={20}
-                        color={theme.colors.textSecondary}
-                      />
-                      <TextInput
-                        placeholder={field.label}
-                        placeholderTextColor={theme.colors.textSecondary}
-                        style={[
-                          styles.modalInput,
-                          { color: theme.colors.text },
-                        ]}
-                        defaultValue={newTransactionRef.current[field.key]}
-                        onChangeText={(text) =>
-                          (newTransactionRef.current[field.key] = text)
-                        }
-                        keyboardType={
-                          field.key === "amount" ? "numeric" : "default"
-                        }
-                      />
-                    </View>
-                  </View>
-                ))}
+  //               {/* Input Fields */}
+  //               {[
+  //                 {
+  //                   label: "Vendor / Name",
+  //                   key: "name",
+  //                   icon: "label-outline",
+  //                 },
+  //                 { label: "Amount (₹)", key: "amount", icon: "payments" },
+  //                 { label: "Category", key: "category", icon: "category" },
+  //                 {
+  //                   label: "Date (YYYY-MM-DD)",
+  //                   key: "createdAt",
+  //                   icon: "calendar-today",
+  //                 },
+  //                 { label: "Time (HH:MM)", key: "time", icon: "access-time" },
+  //               ].map((field) => (
+  //                 <View key={field.key} style={styles.inputGroup}>
+  //                   <Text
+  //                     style={[
+  //                       styles.inputLabel,
+  //                       { color: theme.colors.textSecondary },
+  //                     ]}
+  //                   >
+  //                     {field.label}
+  //                   </Text>
+  //                   <View style={styles.inputWrapper(theme)}>
+  //                     <MaterialIcons
+  //                       name={field.icon}
+  //                       size={20}
+  //                       color={theme.colors.textSecondary}
+  //                     />
+  //                     <TextInput
+  //                       placeholder={field.label}
+  //                       placeholderTextColor={theme.colors.textSecondary}
+  //                       style={[
+  //                         styles.modalInput,
+  //                         { color: theme.colors.text },
+  //                       ]}
+  //                       defaultValue={newTransactionRef.current[field.key]}
+  //                       onChangeText={(text) =>
+  //                         (newTransactionRef.current[field.key] = text)
+  //                       }
+  //                       keyboardType={
+  //                         field.key === "amount" ? "numeric" : "default"
+  //                       }
+  //                     />
+  //                   </View>
+  //                 </View>
+  //               ))}
 
-                <TouchableOpacity
-                  style={[
-                    styles.addButton,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
-                  onPress={handleAddTransaction}
-                >
-                  <Text style={styles.addButtonText}>Save Transaction</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
-  );
+  //               <TouchableOpacity
+  //                 style={[
+  //                   styles.addButton,
+  //                   { backgroundColor: theme.colors.primary },
+  //                 ]}
+  //                 onPress={handleAddTransaction}
+  //               >
+  //                 <Text style={styles.addButtonText}>Save Transaction</Text>
+  //               </TouchableOpacity>
+  //             </ScrollView>
+  //           </View>
+  //         </KeyboardAvoidingView>
+  //       </View>
+  //     </TouchableWithoutFeedback>
+  //   </Modal>
+  // );
 
   // --------- MAIN RENDER ----------
   return (
@@ -303,7 +327,7 @@ const Transactions = () => {
               style={[styles.filterPanel, { borderColor: theme.colors.border }]}
             >
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {["All", "Food", "Shopping", "Income"].map((cat) => (
+                {allCategories.map((cat) => (
                   <TouchableOpacity
                     key={cat}
                     style={[
@@ -488,7 +512,11 @@ const Transactions = () => {
         onPress={() => setIsModalVisible(true)}
       />
 
-      <TransactionModal />
+      {/* <TransactionModal /> */}
+      <TransactionModal  handleAddTransaction={handleAddTransaction}
+      isModalVisible={isModalVisible} setIsModalVisible={setIsModalVisible}
+      theme={theme}
+      />
     </>
   );
 };
