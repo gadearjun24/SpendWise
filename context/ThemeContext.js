@@ -8,10 +8,12 @@ export const ThemeContext = createContext();
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(LightTheme);
   const [isDark, setIsDark] = useState(false);
+  const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
   useEffect(() => {
     const loadTheme = async () => {
       try {
+        setIsThemeLoaded(false);
         const storedTheme = await AsyncStorage.getItem("@theme_preference");
         if (storedTheme !== null) {
           const dark = storedTheme === "dark";
@@ -26,6 +28,8 @@ export const ThemeProvider = ({ children }) => {
         }
       } catch (error) {
         console.log("Error loading theme:", error);
+      }finally{
+        setIsThemeLoaded(true);
       }
     };
 
@@ -47,7 +51,7 @@ export const ThemeProvider = ({ children }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, isDark, toggleTheme,isThemeLoaded }}>
       {children}
     </ThemeContext.Provider>
   );

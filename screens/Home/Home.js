@@ -19,78 +19,183 @@ import {
 import ScreenLayout from "../../components/layout/ScreenLayout";
 import { ThemeContext } from "../../context/ThemeContext";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useTransaction } from "../../context/TransactionsContext";
 
 const screenWidth = Dimensions.get("window").width;
 
 const HomeScreen = () => {
   const { theme } = useContext(ThemeContext);
+  const {transactions} = useTransaction()
 
   // Updated colors for a more vibrant, modern palette
-  const summaryData = [
-    {
-      label: "Total Spent",
-      value: "₹1,250",
-      color: "#f43f5e", // Rose Red
-      icon: TrendingDown,
-    },
-    {
-      label: "Total Income",
-      value: "₹2,300",
-      color: "#10b981", // Emerald Green
-      icon: TrendingUp,
-    },
-    {
-      label: "Net Balance",
-      value: "₹1,050",
-      color: "#3b82f6", // Royal Blue
-      icon: Wallet,
-    },
-  ];
+  // Compute totals dynamically
+const totalIncome = transactions
+.filter(t => t.isIncome)
+.reduce((sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")), 0);
 
+const totalExpense = transactions
+.filter(t => t.isExpense)
+.reduce((sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")), 0);
+
+const thisMonthTotalExpense = transactions
+.filter(t => t.isExpense && new Date(t.createdAt).getMonth() === new Date().getMonth())
+.reduce((sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")), 0);
+
+const netSavings = totalIncome - totalExpense <= 0 ? 0 : totalIncome - totalExpense ;
+
+// Dynamic summary cards
+const summaryData = [
+{
+  label: "Total Income",
+  value: `₹${totalIncome}`,
+  color: "#10b981", // Emerald green
+  icon: TrendingUp,
+},
+{
+  label: "Total Expense",
+  value: `₹${totalExpense}`,
+  color: "#f43f5e", // Red
+  icon: TrendingDown,
+},
+{
+  label: "Net Savings",
+  value: `₹${netSavings}`,
+  color: "#3b82f6", // Blue
+  icon: Wallet,
+},
+];
+
+  // const summaryData = [
+  //   {
+  //     label: "Total Spent",
+  //     value: "₹1,250",
+  //     color: "#f43f5e", // Rose Red
+  //     icon: TrendingDown,
+  //   },
+  //   {
+  //     label: "Total Income",
+  //     value: "₹2,300",
+  //     color: "#10b981", // Emerald Green
+  //     icon: TrendingUp,
+  //   },
+  //   {
+  //     label: "Net Balance",
+  //     value: "₹1,050",
+  //     color: "#3b82f6", // Royal Blue
+  //     icon: Wallet,
+  //   },
+  // ];
+
+
+ // Safe transactions array
+const safeTransactions = transactions || [];
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+// Get current month and year
+const now = new Date();
+const currentMonth = now.getMonth(); // 0-based: Jan = 0
+const currentYear = now.getFullYear();
+
+// Compute category totals dynamically for this month only
+const categoryTotals = {};
+safeTransactions.forEach(t => {
+  if (!t.isExpense) return;
+
+  const txDate = new Date(t.createdAt);
+  if (txDate.getMonth() !== currentMonth || txDate.getFullYear() !== currentYear) return;
+
+  const category = t.category || "Others";
+  const amount = parseInt(t.amount?.replace(/[^0-9]/g, "")) || 0;
+
+  if (!categoryTotals[category]) categoryTotals[category] = 0;
+  categoryTotals[category] += amount;
+});
+
+// Colors palette
+const colorsPalette = ["#ff6384", "#36a2eb", "#ffce56", "#4bc0c0", "#f87171", "#34d399"];
+
+// Map to chart data; will be empty if no expense transactions this month
+const spendingData = Object.entries(categoryTotals).map(([cat, val], idx) => ({
+  text: cat,
+  value: val,
+  color: colorsPalette[idx % colorsPalette.length],
+}));
+
+
+// Optional: if you want to explicitly set zero values for PieChart, you can do:
+if (spendingData.length === 0) {
+  spendingData.push({ text: "No Expenses", value: 0, color: "#e5e7eb" }); // light gray slice
+}
   // Updated spending data colors for a more appealing pie chart
-  const spendingData = [
-    { value: 40, color: "#f97316", text: "Food" }, // Orange
-    { value: 25, color: "#6366f1", text: "Bills" }, // Indigo
-    { value: 20, color: "#d946ef", text: "Shopping" }, // Fuchsia
-    { value: 15, color: "#06b6d4", text: "Travel" }, // Cyan
-  ];
+  // const spendingData = [
+  //   { value: 40, color: "#f97316", text: "Food" }, // Orange
+  //   { value: 25, color: "#6366f1", text: "Bills" }, // Indigo
+  //   { value: 20, color: "#d946ef", text: "Shopping" }, // Fuchsia
+  //   { value: 15, color: "#06b6d4", text: "Travel" }, // Cyan
+  // ];
 
-  const weeklySpending = [
-    { value: 40, label: "S" },
-    { value: 55, label: "M" },
-    { value: 50, label: "T" },
-    { value: 45, label: "W" },
-    { value: 40, label: "T" },
-    { value: 60, label: "F" },
-    { value: 70, label: "S" },
-  ];
 
-  const recentTransactions = [
-    {
-      id: 1,
-      name: "Zomato",
-      type: "Food",
-      amount: "-₹450",
-      color: "#f43f5e",
-      time: "Yesterday",
-    },
-    {
-      id: 2,
-      name: "Amazon Prime",
-      type: "Shopping",
-      amount: "-₹1,200",
-      color: "#f43f5e",
-      time: "Yesterday",
-    },
-    {
-      id: 3,
-      name: "Monthly Salary",
-      type: "Income",
-      amount: "+₹2,300",
-      color: "#10b981",
-      time: "3 days ago",
-    },
-  ];
+  const days = ["S", "M", "T", "W", "T", "F", "S"];
+  const weeklySpending = days.map(day => {
+    const dailyTransactions = transactions.filter(
+      t => new Date(t.createdAt).getDay() === days.indexOf(day)
+    );
+    const dailyTotal = dailyTransactions.reduce(
+      (sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")),
+      0
+    );
+    return { label: day, value: dailyTotal };
+  });
+  // const weeklySpending = [
+  //   { value: 40, label: "S" },
+  //   { value: 55, label: "M" },
+  //   { value: 50, label: "T" },
+  //   { value: 45, label: "W" },
+  //   { value: 40, label: "T" },
+  //   { value: 60, label: "F" },
+  //   { value: 70, label: "S" },
+  // ];
+
+  // Define a color palette
+
+// Get the 3 most recent transactions
+const recentTransactions = (transactions || [])
+  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  .slice(0, 3)
+  .map((t, idx) => ({
+    ...t,
+    color: colorsPalette[idx % colorsPalette.length], // Assign a color dynamically
+  }));
+  // const recentTransactions = [
+  //   {
+  //     id: 1,
+  //     name: "Zomato",
+  //     type: "Food",
+  //     amount: "-₹450",
+  //     color: "#f43f5e",
+  //     time: "Yesterday",
+  //   },
+  //   {
+  //     id: 2,
+  //     name: "Amazon Prime",
+  //     type: "Shopping",
+  //     amount: "-₹1,200",
+  //     color: "#f43f5e",
+  //     time: "Yesterday",
+  //   },
+  //   {
+  //     id: 3,
+  //     name: "Monthly Salary",
+  //     type: "Income",
+  //     amount: "+₹2,300",
+  //     color: "#10b981",
+  //     time: "3 days ago",
+  //   },
+  // ];
+
+
 
   // // Determine greeting based on time (simple placeholder logic)
   // const getGreeting = () => {
@@ -146,7 +251,7 @@ const HomeScreen = () => {
               })}
             </Text>
           </View>
-          <View
+          {/* <View
             style={[
               styles.syncChip,
               {
@@ -168,7 +273,7 @@ const HomeScreen = () => {
             >
               Synced
             </Text>
-          </View>
+          </View> */}
         </View>
 
         {/* Summary Cards */}
@@ -220,12 +325,24 @@ const HomeScreen = () => {
             { backgroundColor: theme.colors.surface },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Category Spending
-          </Text>
+          <View style={{flex:1, marginBottom:4,flexDirection:"row", justifyContent:"space-between"
+            ,borderBottomWidth:1,borderBottomColor:"rgba(156, 163, 175, 0.4)"
+          }}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text, borderBottomWidth: 0 }]}>
+              Category Spending
+            </Text>
+           <Text style={{
+              fontSize: 14,
+              fontWeight: '600',
+              color: theme.colors.primary,
+              marginBottom: 8
+            }}>
+              {monthNames[currentMonth]}
+            </Text>
+          </View>
           <View
             style={{
-              flexDirection: "row",
+              // flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
             }}
@@ -250,7 +367,7 @@ const HomeScreen = () => {
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    ₹3,000
+                    {thisMonthTotalExpense}
                   </Text>
                   <Text
                     style={{
@@ -258,7 +375,7 @@ const HomeScreen = () => {
                       fontSize: 12,
                     }}
                   >
-                    Total Spend
+                    Total Expense
                   </Text>
                 </View>
               )}
@@ -359,9 +476,9 @@ const HomeScreen = () => {
                     <Text
                       style={[
                         styles.transactionName,
-                        { color: theme.colors.text },
+                        { color: theme.colors.text ,width:150},
                       ]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       ellipsizeMode="tail"
                     >
                       {item.name}

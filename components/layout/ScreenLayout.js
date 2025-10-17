@@ -9,7 +9,8 @@ const ScreenLayout = ({ children, style }) => {
     <View
       style={[
         styles.container,
-        { backgroundColor: theme.colors.background, ...style },
+        { backgroundColor: theme.colors.background, ...style ,
+        },
       ]}
     >
       <StatusBar

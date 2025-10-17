@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 const TransactionContext = createContext();
 
@@ -19,7 +19,7 @@ export const TransactionProvider = ({ children }) => {
     }
 
     const [transactions, setTransactions] = useState([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
     const [total, setTotal] = useState(0)
     const [filteredTransactions, setFilteredTransactions] = useState([])
@@ -28,6 +28,7 @@ export const TransactionProvider = ({ children }) => {
     const [searchQuery, setSearchQuery] = useState('')
     const [sort, setSort] = useState('date')
     const [sortDirection, setSortDirection] = useState('desc')
+    const [isInitialDataLoaded,setIsInitialDataLoaded] = useState(false)
 
 
     // funcitons for all 
@@ -38,16 +39,22 @@ export const TransactionProvider = ({ children }) => {
         // function use the realm sqlite database
         try {
             setError("")
-            setLoading(true)
+            setIsInitialDataLoaded(false)
+            // 5sec await 
+            await new Promise(resolve => setTimeout(resolve, 10000));
             setTransactions([]);
         }
         catch (err) {
             console.log(err)
             setError(err.message)
         } finally {
-            setLoading(false)
+            setIsInitialDataLoaded(true)
         }
     }
+
+    useEffect(()=>{
+        fetchTransactions();
+    },[])
 
     // 2.function to add a new transaction to the database
 
@@ -83,11 +90,11 @@ export const TransactionProvider = ({ children }) => {
 
     // 4. update a transaction in the database
 
-    const updateTransaction = async (id, transaction) => {
+    const updateTransaction = async (transaction) => {
         try {
             setError("")
             setLoading(true)
-            setTransactions(transactions.map(t => t.id === id ? transaction : t));
+            setTransactions(transactions.map(t => t.id === transaction.id ? transaction : t));
         }
         catch (err) {
             console.log(err)
@@ -160,7 +167,7 @@ export const TransactionProvider = ({ children }) => {
             updateTransaction,
             filterTransactions,
             searchTransactions,
-
+            isInitialDataLoaded
 
 
         }}

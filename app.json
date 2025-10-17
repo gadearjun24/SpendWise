@@ -2,7 +2,7 @@
   "expo": {
     "name": "SpendWise",
     "slug": "SpendWise",
-    "version": "1.9.5",
+    "version": "3.2.0",
     "orientation": "portrait",
     "icon": "./assets/icons/logo.png",
     "userInterfaceStyle": "automatic",
@@ -20,10 +20,16 @@
         "foregroundImage": "./assets/icons/logo.png",
         "backgroundColor": "#E2E8F0"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.arjungade.SpendWise"
     },
     "web": {
       "favicon": "./assets/icons/logo.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ed344a16-4fc1-4b11-8a97-0919ab207b70"
+      }
     }
   }
 }

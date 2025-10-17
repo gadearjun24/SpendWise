@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
   View,
@@ -13,10 +13,12 @@ import {
   Dimensions,
   StyleSheet,
   FlatList,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { X } from "lucide-react-native";
+import { useTransaction } from "../../context/TransactionsContext";
 
 const { height } = Dimensions.get("window");
 
@@ -25,6 +27,8 @@ const TransactionModal = ({
   setIsModalVisible,
   theme,
   handleAddTransaction,
+  transactionToUpdate,
+  setNewTransaction:setNewTransactionFromTnx
 }) => {
   const [currentType, setCurrentType] = useState("Expense");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -34,6 +38,7 @@ const TransactionModal = ({
   const [categoryInput, setCategoryInput] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [categoryFocused, setCategoryFocused] = useState(false);
+  const {updateTransaction} = useTransaction();
 
   // Default categories
   const [categories, setCategories] = useState({
@@ -66,7 +71,8 @@ const TransactionModal = ({
     ],
   });
   const now = new Date();
-  const newTransactionRef = useRef({
+  console.log({transactionToUpdate},"222")
+  const [newTransaction,setNewTransaction] = useState({
     type: "Expense",
     name: "",
     amount: "",
@@ -75,10 +81,20 @@ const TransactionModal = ({
     time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), // HH:MM
   });
 
+  useEffect(() => {
+    if (transactionToUpdate) {
+      setNewTransaction(transactionToUpdate);
+      setSelectedDate(transactionToUpdate.createdAt ? new Date(transactionToUpdate.createdAt) : new Date());
+      setSelectedTime(transactionToUpdate.time ? new Date(`1970-01-01T${transactionToUpdate.time}`) : new Date());
+      setCategoryInput(transactionToUpdate.category || "");
+      
+    }
+  }, [transactionToUpdate]);
+
   // Handle category input change
   const handleCategoryChange = (text) => {
     setCategoryInput(text);
-    newTransactionRef.current.category = text;
+    newTransaction.category = text;
 
     const available = categories[currentType].filter((c) =>
       c.toLowerCase().includes(text.toLowerCase())
@@ -89,13 +105,38 @@ const TransactionModal = ({
   // Handle category selection from suggestions
   const handleCategorySelect = (cat) => {
     setCategoryInput(cat);
-    newTransactionRef.current.category = cat;
+    newTransaction.category = cat;
     setFilteredCategories([]);
   };
 
   // Handle save
   const handleSave = () => {
+
+    if(!newTransaction.amount || !newTransaction.name || !newTransaction.category){
+      Alert.alert("Error", "All fields are required",
+      )
+    }
+
+
     const cat = categoryInput.trim();
+    if(transactionToUpdate){
+      if(transactionToUpdate.id){
+        updateTransaction({
+          ...newTransaction,
+          category: cat,
+          createdAt: selectedDate.toISOString().split("T")[0],
+          time: selectedTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        })
+        Alert.alert("Success", "Transaction updated successfully",
+        )
+        
+        setNewTransactionFromTnx()
+        setIsModalVisible(false);
+        return;
+          
+      }
+    }
+
 
     // If category is new, add to list
     if (
@@ -111,22 +152,22 @@ const TransactionModal = ({
     }
 
     handleAddTransaction({
-      ...newTransactionRef.current,
+      ...newTransaction,
       category: cat,
       createdAt: selectedDate.toISOString().split("T")[0],
       time: selectedTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     });
 
     const now = new Date();
-
-    newTransactionRef.current = {
+    setCategoryInput("")
+    setNewTransaction ({
       type: "Expense",
       name: "",
       amount: "",
       category: "",
       createdAt: now.toISOString().split("T")[0], // YYYY-MM-DD
       time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), // HH:MM
-    };
+    });
 
     setIsModalVisible(false);
   };
@@ -175,7 +216,7 @@ const TransactionModal = ({
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <ScrollView
-                showsVerticalScrollIndicator
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
                 keyboardShouldPersistTaps="handled"
               >
@@ -194,7 +235,7 @@ const TransactionModal = ({
                       ]}
                       onPress={() => {
                         setCurrentType(type);
-                        newTransactionRef.current.type = type;
+                        newTransaction.type = type;
                         setCategoryInput("");
                         setFilteredCategories([]);
                       }}
@@ -235,10 +276,11 @@ const TransactionModal = ({
                         placeholder={field.label}
                         placeholderTextColor={theme.colors.textSecondary}
                         style={[styles.modalInput, { color: theme.colors.text }]}
-                        defaultValue={newTransactionRef.current[field.key]}
+                        defaultValue={newTransaction[field.key]}
                         onChangeText={(text) =>
-                          (newTransactionRef.current[field.key] = text)
+                          (newTransaction[field.key] = text)
                         }
+                        
                         keyboardType={
                           field.key === "amount" ? "numeric" : "default"
                         }
@@ -269,7 +311,7 @@ const TransactionModal = ({
                       value={categoryInput}
                       onChangeText={handleCategoryChange}
                       onFocus={() => setCategoryFocused(true)}
-
+                      
                       style={[styles.modalInput, { color: theme.colors.text }]}
                     />
                   </View>
@@ -288,7 +330,7 @@ const TransactionModal = ({
                       >
                         <MaterialIcons name="close" size={20} color={theme.colors.textSecondary} />
                       </TouchableOpacity>
-                      <ScrollView style={{ flex: 1, position: "relative" }} nestedScrollEnabled >
+                      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, position: "relative" }} nestedScrollEnabled >
 
                         {filteredCategories.map((item) => (
                           <TouchableOpacity
@@ -340,7 +382,7 @@ const TransactionModal = ({
                         setShowDatePicker(false);
                         if (date) {
                           setSelectedDate(date);
-                          newTransactionRef.current.createdAt =
+                          newTransaction.createdAt =
                             date.toISOString().split("T")[0];
                         }
                       }}
@@ -381,7 +423,7 @@ const TransactionModal = ({
                         setShowTimePicker(false);
                         if (time) {
                           setSelectedTime(time);
-                          newTransactionRef.current.time = time.toLocaleTimeString([], {
+                          newTransaction.time = time.toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           });

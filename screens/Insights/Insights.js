@@ -14,65 +14,130 @@ import { DarkModeTheme, LightTheme } from "../../theme";
 import { MaterialIcons } from "@expo/vector-icons";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { ThemeContext } from "../../context/ThemeContext";
+import { useTransaction } from "../../context/TransactionsContext";
 
 // Get screen width for responsive charting
 const screenWidth = Dimensions.get("window").width;
 
 const InsightsScreen = () => {
   const { theme, isDark } = useContext(ThemeContext);
-
+  const {transactions} = useTransaction();
   // Dummy Data
-  const summaryCards = [
-    {
-      label: "Total Income",
-      value: "₹2,300",
-      color: "#10b981", // Emerald green
-      icon: "trending-up",
-    },
-    {
-      label: "Total Expense",
-      value: "₹3,221", // Red
-      color: "#ef4444",
-      icon: "trending-down",
-    },
-    { label: "Net Savings", value: "₹1,050", color: "#3b82f6", icon: "wallet" }, // Blue
-    // {
-    //   label: "Spending Limit",
-    //   value: "₹500 left",
-    //   color: "#f59e0b", // Amber
-    //   icon: "bar-chart",
-    // },
-  ];
+ // Compute totals dynamically
+const totalIncome = transactions
+.filter(t => t.isIncome)
+.reduce((sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")), 0);
 
-  // Updated category colors for a more vibrant pie chart
-  const categoryData = [
-    { value: 40, color: "#ff6384", text: "Food" }, // Pink
-    { value: 25, color: "#36a2eb", text: "Bills" }, // Bright Blue
-    { value: 20, color: "#ffce56", text: "Shopping" }, // Yellow
-    { value: 15, color: "#4bc0c0", text: "Travel" }, // Teal
-  ];
+const totalExpense = transactions
+.filter(t => t.isExpense)
+.reduce((sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")), 0);
 
-  const trendData = [
-    { value: 40, label: "S" },
-    { value: 55, label: "M" },
-    { value: 50, label: "T" },
-    { value: 45, label: "W" },
-    { value: 40, label: "T" },
-    { value: 60, label: "F" },
-    { value: 70, label: "S" },
-  ];
+const netSavings = totalIncome - totalExpense <= 0 ? 0 : totalIncome - totalExpense ;
 
-  const topVendors = [
-    { name: "Amazon", amount: "+1,200" },
-    { name: "Zomato", amount: "-450" },
-    { name: "Netflix", amount: "-300" },
-  ];
+// Dynamic summary cards
+const summaryCards = [
+{
+  label: "Total Income",
+  value: `₹${totalIncome}`,
+  color: "#10b981", // Emerald green
+  icon: "trending-up",
+},
+{
+  label: "Total Expense",
+  value: `₹${totalExpense}`,
+  color: "#ef4444", // Red
+  icon: "trending-down",
+},
+{
+  label: "Net Savings",
+  value: `₹${netSavings}`,
+  color: "#3b82f6", // Blue
+  icon: "wallet",
+},
+];
 
+
+
+// Safe transactions array
+const safeTransactions = transactions || [];
+
+// Compute category totals dynamically
+const categoryTotals = {};
+safeTransactions.forEach(t => {
+  if (!t.isExpense) return
+  const category = t.category || "Others";
+  const amount = parseInt(t.amount?.replace(/[^0-9]/g, "")) || 0;
+  if (!categoryTotals[category]) categoryTotals[category] = 0;
+  if (t.isExpense) categoryTotals[category] += amount;
+});
+
+// Colors palette
+const colorsPalette = ["#ff6384", "#36a2eb", "#ffce56", "#4bc0c0", "#f87171", "#34d399"];
+
+// Map to chart data; will be empty if no expense transactions
+const categoryData = Object.entries(categoryTotals).map(([cat, val], idx) => ({
+  text: cat,
+  value: val,
+  color: colorsPalette[idx % colorsPalette.length],
+}));
+
+// Optional: if you want to explicitly set zero values for PieChart, you can do:
+if (categoryData.length === 0) {
+  categoryData.push({ text: "No Expenses", value: 0, color: "#e5e7eb" }); // light gray slice
+}
+
+
+  
+
+  const days = ["S", "M", "T", "W", "T", "F", "S"];
+  const trendData = days.map(day => {
+    const dailyTransactions = transactions.filter(
+      t => new Date(t.createdAt).getDay() === days.indexOf(day)
+    );
+    const dailyTotal = dailyTransactions.reduce(
+      (sum, t) => sum + parseInt(t.amount.replace(/[^0-9]/g, "")),
+      0
+    );
+    return { label: day, value: dailyTotal };
+  });
+  
+
+  const vendorTotals = {};
+
+transactions.forEach(t => {
+  const name = t.name || "Unknown";
+  const amount = parseInt(t.amount.replace(/[^0-9]/g, ""));
+  if (!vendorTotals[name]) vendorTotals[name] = 0;
+  vendorTotals[name] += t.isIncome ? amount : -amount;
+});
+
+const topVendors = Object.entries(vendorTotals)
+  .sort(([, a], [, b]) => b - a)
+  .slice(0, 5)
+  .map(([name, amount]) => ({
+    name,
+    amount: amount >= 0 ? `+${amount}` : `${amount}`,
+  }));
+
+
+  // const alerts = [
+  //   "Highest expense category this month: Food",
+  //   "You saved ₹2,500 more than last month",
+  //   "Subscription renewals this week",
+  // ];
+
+  const maxExpenseCategory = Object.entries(categoryTotals).reduce(
+    (max, [cat, val]) => (val > max.val ? { cat, val } : max),
+    { cat: "", val: 0 }
+  );
+  
   const alerts = [
-    "Highest expense category this month: Food",
-    "You saved ₹2,500 more than last month",
-    "Subscription renewals this week",
+    `Highest expense category this month: ${maxExpenseCategory.cat || "N/A"}`,
+    totalIncome > 0
+      ? `You saved ₹${netSavings} this month`
+      : "No savings yet, track your spending!",
   ];
+  
 
   return (
     <>
@@ -131,7 +196,7 @@ const InsightsScreen = () => {
           ]}
         >
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Category Breakdown
+            Category Breakdown For Expense
           </Text>
           <View style={{ alignItems: "center", paddingTop: 10 }}>
             <PieChart
@@ -149,14 +214,19 @@ const InsightsScreen = () => {
                       color: theme.colors.text,
                       fontWeight: "700",
                       fontSize: 16,
+                      width:100,
+                      overflow:"hidden",
+                      textAlign:"center"
                     }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
-                    100%
+                    {totalExpense}
                   </Text>
                   <Text
                     style={{ color: theme.colors.textSecondary, fontSize: 12 }}
                   >
-                    Expense
+                   Total Expense
                   </Text>
                 </View>
               )}

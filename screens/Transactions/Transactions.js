@@ -12,6 +12,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { FAB } from "react-native-paper";
@@ -26,7 +27,7 @@ const { width, height } = Dimensions.get("window");
 const initialNewTransaction = {
   name: "",
   amount: "",
-  category: "General",
+  category: "",
   type: "Expense",
   createdAt: new Date().toISOString().slice(0, 10),
   time: new Date().toLocaleTimeString("en-US", {
@@ -37,8 +38,7 @@ const initialNewTransaction = {
 
 const Transactions = () => {
   const { theme, isDark } = useContext(ThemeContext);
-  const { transactions, addTransaction, } = useTransaction()
-
+  const { transactions, addTransaction, deleteTransaction} = useTransaction()
   // const [transactions, setTransactions] = useState([
   //   {
   //     id: 1,
@@ -76,7 +76,7 @@ const Transactions = () => {
   const [activeDate, setActiveDate] = useState("All");
   const [allCategories, setAllCategories] = useState(["All", "Food", "Shopping", "Income"])
 
-  const newTransactionRef = useRef(initialNewTransaction);
+  const [newTransaction,setNewTransaction] = useState();
   const [currentType, setCurrentType] = useState("Expense");
 
   // --------- GET CATEGORIES -------------
@@ -135,14 +135,13 @@ const Transactions = () => {
       id: Date.now(),
       ...newTx,
       updatedAt: newTx.createdAt,
-      amount: `₹${parsed}`,
+      amount: `${parsed}`,
       isIncome: newTx.type === "Income",
       isExpense: newTx.type === "Expense",
     }
 
     addTransaction(newTransaction)
     setIsModalVisible(false);
-    newTransactionRef.current = initialNewTransaction;
     setCurrentType("Expense")
   };
 
@@ -445,26 +444,15 @@ const Transactions = () => {
             ) : (
               filteredTransactions.map((t) => {
                 const isIncome = t.type === "Income";
-                const color = isIncome
-                  ? theme.colors.secondary
-                  : theme.colors.error;
+                const color = isIncome ? theme.colors.secondary : theme.colors.error;
+              
                 return (
                   <View
                     key={t.id}
-                    style={[
-                      styles.transactionCard,
-                      {
-                        backgroundColor: theme.colors.surface,
-                      },
-                    ]}
+                    style={[styles.transactionCard, { backgroundColor: theme.colors.surface }]}
                   >
                     <View style={styles.transactionLeft}>
-                      <View
-                        style={[
-                          styles.iconCircle,
-                          { backgroundColor: `${color}20` },
-                        ]}
-                      >
+                      <View style={[styles.iconCircle, { backgroundColor: `${color}20` }]}>
                         <MaterialIcons
                           name={isIncome ? "trending-up" : "trending-down"}
                           size={22}
@@ -473,29 +461,67 @@ const Transactions = () => {
                       </View>
                       <View style={{ marginLeft: 10 }}>
                         <Text
-                          style={[
-                            styles.transactionName,
-                            { color: theme.colors.text },
-                          ]}
-                        >
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                        style={[styles.transactionName, { color: theme.colors.text }]}>
                           {t.name}
                         </Text>
-                        <Text
-                          style={[
-                            styles.transactionCategory,
-                            { color: theme.colors.textSecondary },
-                          ]}
-                        >
+                        <Text numberOfLines={3} ellipsizeMode="tail" style={[styles.transactionCategory, { color: theme.colors.textSecondary }]}>
                           {t.category} • {t.time}
                         </Text>
                       </View>
                     </View>
-                    <Text style={[styles.transactionAmount, { color }]}>
-                      {t.amount}
-                    </Text>
+              
+                    <View style={styles.transactionRight}>
+                      <Text style={[styles.transactionAmount, { color }]}>
+                        ₹{t.amount}
+                      </Text>
+                  
+                     <View style={{flex:1,flexDirection:"row"}}>
+                       {/* Edit Button */}
+                       <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: theme.colors.surface }]}
+                        onPress={() => {
+                          // Open modal for editing
+                          setCurrentType(t.type);
+                          setNewTransaction({ ...t });
+                          console.log({...t},"111")
+                          setIsModalVisible(true);
+                        }}
+                      >
+                        <MaterialIcons name="edit" size={20} color={theme.colors.primary} />
+                      </TouchableOpacity>
+              
+                      {/* Delete Button */}
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: theme.colors.surface }]}
+                        onPress={() => {
+                          Alert.alert(
+                            "Delete Transaction",
+                            "Are you sure you want to delete this transaction?",
+                            [
+                              {
+                                text: "Cancel",
+                                style: "cancel",
+                              },
+                              {
+                                text: "Delete",
+                                style: "destructive",
+                                onPress: () => deleteTransaction(t.id),
+                              },
+                            ],
+                            { cancelable: true }
+                          );
+                        }}
+                      >
+                        <MaterialIcons name="delete" size={20} color={theme.colors.error} />
+                      </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
                 );
               })
+              
             )}
           </ScrollView>
         </View>
@@ -513,7 +539,8 @@ const Transactions = () => {
       />
 
       {/* <TransactionModal /> */}
-      <TransactionModal  handleAddTransaction={handleAddTransaction}
+      <TransactionModal transactionToUpdate={newTransaction} setNewTransaction={setNewTransaction}
+      handleAddTransaction={handleAddTransaction}
       isModalVisible={isModalVisible} setIsModalVisible={setIsModalVisible}
       theme={theme}
       />
@@ -635,10 +662,12 @@ const styles = StyleSheet.create({
   transactionName: {
     fontSize: 15,
     fontWeight: "600",
+    width:100
   },
   transactionCategory: {
     fontSize: 13,
     marginTop: 2,
+    width:150
   },
   transactionAmount: {
     fontSize: 15,
@@ -751,6 +780,25 @@ const styles = StyleSheet.create({
     fontWeight: isActive ? "700" : "500",
     color: isActive ? "#000" : "#666",
   }),
+  transactionRight: {
+    // flexDirection: "row",
+    alignItems: "center",
+  },
+  actionButton: {
+    marginLeft: 8,
+    padding: 6,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    height:35,
+    borderWidth:1,
+    borderColor:"rgba(156, 163, 175, 0.4)"
+  },
 
   // ===== BUTTON =====
   addButton: {

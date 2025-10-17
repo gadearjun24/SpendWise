@@ -190,7 +190,7 @@ const Settings = () => {
           <Text
             style={[styles.versionText, { color: theme.colors.textSecondary }]}
           >
-            Version 1.2.0 (Build 45)
+            Version 3.2.0 (Build 3)
           </Text>
         </View>
       </ScreenLayout>
