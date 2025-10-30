@@ -1,29 +1,3 @@
-// import React, { useContext } from "react";
-// import { NavigationContainer } from "@react-navigation/native";
-// import BottomTabs from "./BottomTabs";
-// import { SafeAreaView } from "react-native-safe-area-context";
-// import { ThemeContext } from "../context/ThemeContext";
-// import * as Splash from "expo-splash-screen";
-// import SplashScreen from "../screens/SplashScreen/SplashScreen";
-// Splash.preventAutoHideAsync(); // stop Expo from auto-hiding
-
-// const AppNavigation = () => {
-//   const { theme, isDark } = useContext(ThemeContext);
-
-//   return (
-//     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, }}>
-//       <NavigationContainer>
-//         <SplashScreen />
-//         <BottomTabs />
-//       </NavigationContainer>
-//     </SafeAreaView>
-//   );
-// };
-
-// export default AppNavigation;
-
-
-
 import React, { useContext, useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -49,7 +23,7 @@ const AppNavigation = () => {
       const timer = setTimeout(async () => {
         setShowSplash(false);
         await Splash.hideAsync(); // now hide Expo’s splash
-      }, 3000);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [isReady]);

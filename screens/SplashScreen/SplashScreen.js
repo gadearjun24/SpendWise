@@ -12,7 +12,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ThemeContext } from "../../context/ThemeContext";
 import { useTransaction } from "../../context/TransactionsContext";
 import logo from "../../assets/icons/logo.png";
-import * as Splash from "expo-splash-screen";
 
 const { width, height } = Dimensions.get("window");
 
@@ -49,15 +48,6 @@ const SplashScreen = () => {
       }),
     ]).start();
 
-    // Simulate theme + data loading
-    const timer = setTimeout(() => {
-      if (isThemeLoaded && isInitialDataLoaded) {
-      // Splash.hideAsync();
-        // navigation.navigate("Home");
-      }
-    }, 10000); // 10s for testing
-
-    return () => clearTimeout(timer);
   }, [isThemeLoaded, isInitialDataLoaded]);
 
   return (

@@ -31,3 +31,5 @@ export const DarkModeTheme = {
     textSecondary: "#cbd5e1",
   },
 };
+// "image": "./assets/icons/logo.png",
+      // "resizeMode": "contain",
